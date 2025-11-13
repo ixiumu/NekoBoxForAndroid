@@ -661,7 +661,7 @@ fun buildConfig(
             predefined = hosts
                 .mapNotNull { line ->
                     val parts = line.split(Regex("\\s+")).takeIf { it.size >= 2 } ?: return@mapNotNull null
-                    parts[0] to parts[1]
+                    parts[1] to parts[0]
                 }
                 .groupBy(
                     keySelector = { it.first },
@@ -690,12 +690,6 @@ fun buildConfig(
         }
 
         dns.final_ = if (forTest) "dns-direct" else "dns-remote"
-
-        // hosts
-        dns.rules.add(0, DNSRule_DefaultOptions().apply {
-            ip_accept_any = true
-            server = "dns-hosts"
-        })
 
         // dns object user rules
         if (enableDnsRouting) {
@@ -751,13 +745,18 @@ fun buildConfig(
                 outbound = mutableListOf("any")
                 server = "dns-direct"
             })
-            // force bypass (always top DNS rule)
+            // force bypass
             if (domainListDNSDirectForce.isNotEmpty()) {
                 dns.rules.add(0, DNSRule_DefaultOptions().apply {
                     makeSingBoxRule(domainListDNSDirectForce.toHashSet().toList())
                     server = "dns-direct"
                 })
             }
+            // hosts (always top DNS rule)
+            dns.rules.add(0, DNSRule_DefaultOptions().apply {
+                ip_accept_any = true
+                server = "dns-hosts"
+            })
         }
 
         if (!forTest) _hack_custom_config = DataStore.globalCustomConfig
