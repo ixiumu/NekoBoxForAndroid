@@ -1,5 +1,6 @@
 package io.nekohasekai.sagernet.fmt
 
+import io.nekohasekai.sagernet.DOCS_URL
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
 
@@ -49,7 +50,7 @@ enum class PluginEntry(
     data class DownloadSource(
         val playStore: Boolean = true,
         val fdroid: Boolean = true,
-        val downloadLink: String = "https://matsuridayo.github.io/"
+        val downloadLink: String = DOCS_URL
     )
 
     companion object {

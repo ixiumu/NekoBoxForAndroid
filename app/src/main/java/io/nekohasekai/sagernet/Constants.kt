@@ -1,6 +1,8 @@
 package io.nekohasekai.sagernet
 
 const val CONNECTION_TEST_URL = "http://cp.cloudflare.com/"
+const val GITHUB_REPO = "MatsuriDayo/NekoBoxForAndroid"
+const val DOCS_URL = "https://matsuridayo.github.io/"
 
 object Key {
 

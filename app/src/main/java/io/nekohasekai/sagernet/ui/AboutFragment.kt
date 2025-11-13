@@ -31,6 +31,7 @@ import libcore.Libcore
 import moe.matsuri.nb4a.plugin.Plugins
 import androidx.core.net.toUri
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import io.nekohasekai.sagernet.GITHUB_REPO
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.database.DataStore
 import moe.matsuri.nb4a.utils.Util
@@ -81,11 +82,6 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 .icon(R.drawable.ic_baseline_update_24)
                                 .text(R.string.app_version)
                                 .subText(SagerNet.appVersionNameForDisplay)
-                                .setOnClickAction {
-                                    requireContext().launchCustomTab(
-                                        "https://github.com/MatsuriDayo/NekoBoxForAndroid/releases"
-                                    )
-                                }
                                 .build())
                         .addItem(
                             MaterialAboutActionItem.Builder()
@@ -110,12 +106,12 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 .build())
                         .addItem(
                             MaterialAboutActionItem.Builder()
-                                .icon(R.drawable.ic_baseline_card_giftcard_24)
-                                .text(R.string.donate)
-                                .subText(R.string.donate_info)
+                                .icon(R.drawable.ic_baseline_sanitizer_24)
+                                .text(R.string.github)
                                 .setOnClickAction {
                                     requireContext().launchCustomTab(
-                                        "https://matsuridayo.github.io/index_docs/#donate"
+                                        "https://github.com/$GITHUB_REPO"
+
                                     )
                                 }
                                 .build())
@@ -173,32 +169,6 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                             }
                         }
                         .build())
-                .addCard(
-                    MaterialAboutCard.Builder()
-                        .outline(false)
-                        .title(R.string.project)
-                        .addItem(
-                            MaterialAboutActionItem.Builder()
-                                .icon(R.drawable.ic_baseline_sanitizer_24)
-                                .text(R.string.github)
-                                .setOnClickAction {
-                                    requireContext().launchCustomTab(
-                                        "https://github.com/MatsuriDayo/NekoBoxForAndroid"
-
-                                    )
-                                }
-                                .build())
-                        .addItem(
-                            MaterialAboutActionItem.Builder()
-                                .icon(R.drawable.ic_qu_shadowsocks_foreground)
-                                .text(R.string.telegram)
-                                .setOnClickAction {
-                                    requireContext().launchCustomTab(
-                                        "https://t.me/MatsuriDayo"
-                                    )
-                                }
-                                .build())
-                        .build())
                 .build()
 
         }
@@ -220,9 +190,9 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     }
                     val response = client.newRequest().apply {
                         if (checkPreview) {
-                            setURL("https://api.github.com/repos/MatsuriDayo/NekoBoxForAndroid/releases/tags/preview")
+                            setURL("https://api.github.com/repos/$GITHUB_REPO/releases/tags/preview")
                         } else {
-                            setURL("https://api.github.com/repos/MatsuriDayo/NekoBoxForAndroid/releases/latest")
+                            setURL("https://api.github.com/repos/$GITHUB_REPO/releases/latest")
                         }
                     }.execute()
                     val release = JSONObject(Util.getStringBox(response.contentString))
