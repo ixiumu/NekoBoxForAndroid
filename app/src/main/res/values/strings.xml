@@ -86,7 +86,7 @@
     <string name="cag_dns">DNS Settings</string>
     <string name="remote_dns">Remote DNS</string>
     <string name="direct_dns">Direct DNS</string>
-    <string name="hosts">HOSTS</string>
+    <string name="hosts" translatable="false">HOSTS</string>
     <string name="enable_dns_routing">Enable DNS Routing</string>
     <string name="dns_routing_message">Resolve domains in bypass routes with Direct DNS. Be aware of
         potential DNS leaks</string>
@@ -163,6 +163,7 @@
     <string name="route_opt_block_ads">Block ADs</string>
     <string name="route_opt_block_analysis">Block analysis</string>
     <string name="route_opt_block_quic">Block QUIC</string>
+    <string name="route_opt_bypass_fcm">Bypass FCM</string>
     <string name="domain_strategy">Domain Resolution Strategy</string>
     <string name="traffic_sniffing">Enable Traffic Sniffing</string>
     <string name="enable_mux">Enable Multiplexer</string>

@@ -200,11 +200,24 @@ object ProfileManager {
                     outbound = -2
                 )
             )
-            val fuckedCountry = mutableListOf("cn:中国")
-            if (Locale.getDefault().country != Locale.CHINA.country) {
-                // 非中文用户
-                fuckedCountry += "ir:Iran"
-                fuckedCountry += "ru:Russia"
+            createRule(
+                RuleEntity(
+                    name = app.getString(R.string.route_opt_bypass_fcm),
+                    domains = "regexp:^((alt[0-9]-)?mtalk|dl(\\.l)?)\\.google\\.com$",
+                    outbound = -1
+                )
+            )
+            val userCountry = Locale.getDefault().country
+            val fuckedCountry = when (userCountry) {
+                "IR" -> {
+                    mutableListOf("ir:Iran")
+                }
+                "RU" -> {
+                    mutableListOf("ru:Russia")
+                }
+                else -> {
+                    mutableListOf("cn:中国")
+                }
             }
             for (c in fuckedCountry) {
                 val country = c.substringBefore(":")
