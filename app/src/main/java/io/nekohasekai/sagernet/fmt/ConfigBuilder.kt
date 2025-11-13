@@ -138,6 +138,8 @@ fun buildConfig(
         .mapNotNull { dns -> dns.trim().takeIf { it.isNotBlank() && !it.startsWith("#") } }
     val directDNS = DataStore.directDns.split("\n")
         .mapNotNull { dns -> dns.trim().takeIf { it.isNotBlank() && !it.startsWith("#") } }
+    val hosts = DataStore.hosts.split("\n")
+        .mapNotNull { dns -> dns.trim().takeIf { it.isNotBlank() && !it.startsWith("#") } }
     val enableDnsRouting = DataStore.enableDnsRouting
     val useFakeDns = DataStore.enableFakeDns && !forTest
     val needSniff = DataStore.trafficSniffing > 0
@@ -653,6 +655,20 @@ fun buildConfig(
             detour = TAG_DIRECT
         })
 
+        dns.servers.add(DNSServerOptions().apply {
+            type = "hosts"
+            tag = "dns-hosts"
+            predefined = hosts
+                .mapNotNull { line ->
+                    val parts = line.split(Regex("\\s+")).takeIf { it.size >= 2 } ?: return@mapNotNull null
+                    parts[0] to parts[1]
+                }
+                .groupBy(
+                    keySelector = { it.first },
+                    valueTransform = { it.second }
+                )
+        })
+
         directDNS.firstOrNull().let {
             dns.servers.add(DNSServerOptions().apply {
                 address = it ?: throw Exception("No direct DNS, check your settings!")
@@ -674,6 +690,12 @@ fun buildConfig(
         }
 
         dns.final_ = if (forTest) "dns-direct" else "dns-remote"
+
+        // hosts
+        dns.rules.add(0, DNSRule_DefaultOptions().apply {
+            ip_accept_any = true
+            server = "dns-hosts"
+        })
 
         // dns object user rules
         if (enableDnsRouting) {

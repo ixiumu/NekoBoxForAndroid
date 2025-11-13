@@ -343,6 +343,10 @@ public class SingBoxOptions {
 
         public String detour;
 
+        public String type;
+
+        public Map<String, List<String>> predefined;
+
     }
 
     public static class DNSClientOptions extends SingBoxOption {
@@ -4533,6 +4537,8 @@ public class SingBoxOptions {
         public Boolean disable_cache;
 
         public Integer rewrite_ttl;
+
+        public Boolean ip_accept_any;
 
     }
 
