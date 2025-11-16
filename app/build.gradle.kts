@@ -85,4 +85,27 @@ dependencies {
     ksp("com.github.MatrixDev.Roomigrant:RoomigrantCompiler:0.3.4")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
+
+    // google drive
+    implementation("com.google.android.gms:play-services-auth:21.4.0")
+    implementation("com.google.apis:google-api-services-drive:v3-rev20230822-2.0.0") {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    implementation("com.google.api-client:google-api-client-android:2.8.1") {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    // com.google.api-client:google-api-client dependencies
+    implementation("com.google.http-client:google-http-client-gson:2.0.0") {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.30.0") {
+        exclude(group = "org.apache.httpcomponents")
+    }
+}
+
+configurations.all {
+    exclude(group = "com.google.api-client", module= "google-api-client")
+    resolutionStrategy {
+        force("com.google.code.gson:gson:2.9.0")
+    }
 }

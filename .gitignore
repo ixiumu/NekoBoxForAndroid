@@ -3,6 +3,7 @@
 .idea
 .vscode
 .DS_Store
+*.log
 build/
 /captures
 .externalNativeBuild

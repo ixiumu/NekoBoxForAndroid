@@ -495,6 +495,19 @@
     <string name="backup_import_summary">Importing will overwrite the existing data.</string>
     <string name="backup_importing">Importing…</string>
 
+    <string name="drive_restore">Restore</string>
+    <string name="google_drive">Google Drive</string>
+    <string name="google_sign_in_failed">Google sign in failed.</string>
+    <string name="drive_uploading">Uploading…</string>
+    <string name="drive_backup_success">Backup Success</string>
+    <string name="drive_backup_failed">Backup Failed</string>
+    <string name="drive_restore_success">Restore Success</string>
+    <string name="drive_restore_failed">Restore Failed</string>
+    <string name="drive_fetching">Fetching…</string>
+    <string name="drive_fetching_failed">Drive Restore Query Failed</string>
+    <string name="drive_no_backup_found">No Backup Found</string>
+    <string name="drive_confirm_restore_message">Do you want to import backup file %1$s (created on %2$s)?</string>
+
     <string name="packet_encoding">Packet Encoding</string>
     <string name="acquire_wake_lock">Acquire WakeLock</string>
     <string name="release_wake_lock">Release WakeLock</string>

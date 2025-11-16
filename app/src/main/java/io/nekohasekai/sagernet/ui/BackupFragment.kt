@@ -1,5 +1,7 @@
 package io.nekohasekai.sagernet.ui
 
+import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -11,12 +13,23 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.FileProvider
 import androidx.core.view.isVisible
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
+import com.google.android.gms.tasks.Task
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.jakewharton.processphoenix.ProcessPhoenix
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.http.InputStreamContent
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.drive.Drive
+import com.google.api.services.drive.DriveScopes
 import io.nekohasekai.sagernet.BuildConfig
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
-import io.nekohasekai.sagernet.bg.Executable
 import io.nekohasekai.sagernet.database.*
 import io.nekohasekai.sagernet.database.preference.KeyValuePair
 import io.nekohasekai.sagernet.database.preference.PublicDatabase
@@ -24,11 +37,12 @@ import io.nekohasekai.sagernet.databinding.LayoutBackupBinding
 import io.nekohasekai.sagernet.databinding.LayoutImportBinding
 import io.nekohasekai.sagernet.databinding.LayoutProgressBinding
 import io.nekohasekai.sagernet.ktx.*
-import kotlinx.coroutines.delay
 import moe.matsuri.nb4a.utils.Util
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.util.*
 
 class BackupFragment : NamedFragment(R.layout.layout_backup) {
@@ -63,6 +77,12 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
         super.onViewCreated(view, savedInstanceState)
 
         val binding = LayoutBackupBinding.bind(view)
+
+        val signInOptions = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestScopes(Scope(DriveScopes.DRIVE_APPDATA))
+            .build()
+        signInClient = GoogleSignIn.getClient(requireContext(), signInOptions)
 
         binding.resetSettings.setOnClickListener {
             MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.confirm)
@@ -121,6 +141,16 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
 
         binding.actionImportFile.setOnClickListener {
             startFilesForResult(importFile, "*/*")
+        }
+
+        binding.actionBackupDrive.setOnClickListener {
+            isRestoreMode = false
+            startGoogleSignIn()
+        }
+
+        binding.actionRestoreDrive.setOnClickListener {
+            isRestoreMode = true
+            startGoogleSignIn()
         }
     }
 
@@ -319,6 +349,209 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
             }
             PublicDatabase.kvPairDao.reset()
             PublicDatabase.kvPairDao.insert(settings)
+        }
+    }
+
+    // Google Drive API
+    private lateinit var signInClient: GoogleSignInClient
+    private lateinit var driveService: Drive
+    private var isRestoreMode = false
+
+    private val signInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            handleSignInResult(task)
+        } else {
+            snackbar(getString(R.string.google_sign_in_failed)).show()
+        }
+    }
+
+    private fun startGoogleSignIn() {
+        val account = GoogleSignIn.getLastSignedInAccount(requireContext())
+        val hasRequiredScope = account?.grantedScopes?.contains(Scope(DriveScopes.DRIVE_APPDATA)) == true
+        if (account != null && hasRequiredScope) {
+            handleSignInResult(com.google.android.gms.tasks.Tasks.forResult(account))
+        } else {
+            val signInIntent = signInClient.signInIntent
+            signInLauncher.launch(signInIntent)
+        }
+    }
+
+    private fun handleSignInResult(completedTask: Task<GoogleSignInAccount>) {
+        try {
+            val account = completedTask.getResult(ApiException::class.java)
+
+            val credential = GoogleAccountCredential.usingOAuth2(
+                requireContext(), listOf(DriveScopes.DRIVE_APPDATA)
+            )
+            credential.selectedAccount = account.account
+
+            driveService = Drive.Builder(
+                NetHttpTransport(),
+                GsonFactory.getDefaultInstance(),
+                credential
+            )
+                .setApplicationName(requireContext().getString(R.string.app_name))
+                .build()
+
+            runOnDefaultDispatcher {
+                if (isRestoreMode) {
+                    performDriveRestore()
+                } else {
+                    performDriveBackup()
+                }
+            }
+
+        } catch (e: ApiException) {
+            Logs.e("signInResult:failed code=" + e.statusCode, e)
+            requireActivity().runOnUiThread {
+                snackbar(getString(R.string.google_sign_in_failed) + ": ${e.statusCode}").show()
+            }
+        }
+    }
+
+    private suspend fun performDriveBackup() {
+        var dialog: AlertDialog? = null
+        onMainDispatcher {
+            val progressBinding = LayoutProgressBinding.inflate(layoutInflater)
+            progressBinding.content.text = getString(R.string.drive_uploading)
+            dialog = AlertDialog.Builder(requireContext())
+                .setView(progressBinding.root)
+                .setCancelable(false)
+                .show()
+        }
+
+        content = doBackup(profile = true, rule = true, setting = true)
+        val timeStamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmssSSS", Locale.ROOT).format(Date())
+        val fileName = "outline_backup_${timeStamp}.json"
+
+        try {
+            val metadata = com.google.api.services.drive.model.File().apply {
+                setName(fileName)
+                setMimeType("application/json")
+                setParents(listOf("appDataFolder"))
+            }
+
+            val contentStream = ByteArrayInputStream(content.toByteArray(Charsets.UTF_8))
+
+            driveService.files().create(
+                metadata,
+                InputStreamContent("application/json", contentStream)
+            )
+                .setFields("id")
+                .execute()
+
+            onMainDispatcher {
+                dialog?.dismiss()
+                snackbar(getString(R.string.drive_backup_success)).show()
+            }
+
+        } catch (e: Exception) {
+            Logs.e("Drive REST API Upload Failed", e)
+            onMainDispatcher {
+                dialog?.dismiss()
+                snackbar(getString(R.string.drive_backup_failed) + ": ${e.readableMessage}").show()
+            }
+        }
+    }
+
+    @SuppressLint("StringFormatInvalid")
+    private suspend fun performDriveRestore() {
+        var dialog: AlertDialog? = null
+        onMainDispatcher {
+            val progressBinding = LayoutProgressBinding.inflate(layoutInflater)
+            progressBinding.content.text = getString(R.string.drive_fetching)
+            dialog = AlertDialog.Builder(requireContext())
+                .setView(progressBinding.root)
+                .setCancelable(false)
+                .show()
+        }
+
+        try {
+            val query = driveService.files().list()
+                .setSpaces("appDataFolder")
+                .setFields("files(id, name, createdTime)")
+                .setQ("mimeType='application/json' and name contains 'outline_backup'")
+                .setOrderBy("createdTime desc")
+                .execute()
+
+            val files = query.files
+
+            onMainDispatcher { dialog?.dismiss() }
+
+            if (files.isNullOrEmpty()) {
+                onMainDispatcher {
+                    snackbar(getString(R.string.drive_no_backup_found)).show()
+                }
+                return
+            }
+
+            val latestFile = files.first()
+
+            onMainDispatcher {
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.confirm)
+                    .setMessage(getString(R.string.drive_confirm_restore_message, latestFile.name, latestFile.createdTime.toString()))
+                    .setPositiveButton(R.string.yes) { _, _ ->
+                        runOnDefaultDispatcher {
+                            downloadAndImportFile(latestFile.id)
+                        }
+                    }
+                    .setNegativeButton(R.string.no, null)
+                    .show()
+            }
+
+        } catch (e: Exception) {
+            Logs.e("Drive Restore Query Failed", e)
+            onMainDispatcher {
+                dialog?.dismiss()
+                snackbar("${getString(R.string.drive_fetching_failed)}: ${e.readableMessage}").show()
+            }
+        }
+    }
+
+    private suspend fun downloadAndImportFile(fileId: String) {
+        var dialog: AlertDialog? = null
+
+        onMainDispatcher {
+            val progressBinding = LayoutProgressBinding.inflate(layoutInflater)
+            progressBinding.content.text = getString(R.string.backup_importing)
+            dialog = AlertDialog.Builder(requireContext())
+                .setView(progressBinding.root)
+                .setCancelable(false)
+                .show()
+            SagerNet.stopService()
+        }
+
+        val tempFile = File(requireContext().cacheDir, "drive_restore.json")
+
+        try {
+            FileOutputStream(tempFile).use { outputStream ->
+                driveService.files().get(fileId)
+                    .executeMediaAndDownloadTo(outputStream)
+            }
+
+            val restoredContent = tempFile.readText()
+            val contentObject = JSONObject(restoredContent)
+
+            finishImport(contentObject, profile = true, rule = true, setting = true)
+
+            onMainDispatcher {
+                dialog?.dismiss()
+                snackbar(getString(R.string.drive_restore_success)).show()
+                triggerFullRestart(requireContext())
+            }
+
+        } catch (e: Exception) {
+            Logs.e("Drive Download/Import Failed", e)
+            onMainDispatcher {
+                dialog?.dismiss()
+                alert("${getString(R.string.drive_restore_failed)}: ${e.readableMessage}").tryToShow()
+            }
+        } finally {
+            tempFile.delete()
         }
     }
 
