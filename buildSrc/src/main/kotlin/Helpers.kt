@@ -8,7 +8,6 @@ import org.gradle.kotlin.dsl.getByName
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmOptions
 import java.util.Base64
 import java.util.Properties
-import kotlin.system.exitProcess
 
 private val Project.android get() = extensions.getByName<ApplicationExtension>("android")
 
@@ -18,7 +17,7 @@ private lateinit var localProperties: Properties
 fun Project.requireMetadata(): Properties {
     if (!::metadata.isInitialized) {
         metadata = Properties().apply {
-            load(rootProject.file("nb4a.properties").inputStream())
+            load(rootProject.file("project.properties").inputStream())
         }
     }
     return metadata
@@ -197,10 +196,10 @@ fun Project.setupApp() {
                 outputFileName = if (isPreview) {
                     outputFileName.replace(
                         project.name,
-                        "Outline-" + requireMetadata().getProperty("PRE_VERSION_NAME")
+                        "Netable-" + requireMetadata().getProperty("PRE_VERSION_NAME")
                     ).replace("-preview", "")
                 } else {
-                    outputFileName.replace(project.name, "Outline-$versionName")
+                    outputFileName.replace(project.name, "Netable-$versionName")
                         .replace("-release", "")
                         .replace("-oss", "")
                 }
@@ -208,7 +207,7 @@ fun Project.setupApp() {
         }
 
         for (abi in listOf("Arm64", "Arm", "X64", "X86")) {
-            tasks.create("assemble" + abi + "FdroidRelease") {
+            tasks.register("assemble${abi}FdroidRelease") {
                 dependsOn("assembleFdroidRelease")
             }
         }

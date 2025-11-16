@@ -36,6 +36,7 @@ abstract class GroupUpdater {
         var progress by AtomicInteger()
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     protected suspend fun forceResolve(
         profiles: List<AbstractBean>, groupId: Long?
     ) {

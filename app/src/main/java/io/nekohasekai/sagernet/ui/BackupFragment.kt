@@ -49,9 +49,13 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
 
     override fun name0() = app.getString(R.string.backup)
 
-    var content = ""
+    private var content = ""
+
+    private var appName = app.getString(R.string.app_name)
+
+    @SuppressWarnings("deprecation")
     private val exportSettings =
-        registerForActivityResult(ActivityResultContracts.CreateDocument()) { data ->
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { data ->
             if (data != null) {
                 runOnDefaultDispatcher {
                     try {
@@ -73,6 +77,7 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
             }
         }
 
+    @SuppressWarnings("deprecation")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -104,7 +109,7 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
                 )
                 onMainDispatcher {
                     startFilesForResult(
-                        exportSettings, "outline_backup_${Date().toLocaleString()}.json"
+                        exportSettings, getFileName()
                     )
                 }
             }
@@ -119,7 +124,7 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
                 )
                 app.cacheDir.mkdirs()
                 val cacheFile = File(
-                    app.cacheDir, "outline_backup_${Date().toLocaleString()}.json"
+                    app.cacheDir, getFileName()
                 )
                 cacheFile.writeText(content)
                 onMainDispatcher {
@@ -352,6 +357,11 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
         }
     }
 
+    fun getFileName(): String {
+        val timeStamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmssSSS", Locale.ROOT).format(Date())
+        return "${appName}_backup_${timeStamp}.json"
+    }
+
     // Google Drive API
     private lateinit var signInClient: GoogleSignInClient
     private lateinit var driveService: Drive
@@ -368,6 +378,8 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
         }
     }
 
+
+    @SuppressWarnings("deprecation")
     private fun startGoogleSignIn() {
         val account = GoogleSignIn.getLastSignedInAccount(requireContext())
         val hasRequiredScope = account?.grantedScopes?.contains(Scope(DriveScopes.DRIVE_APPDATA)) == true
@@ -424,12 +436,10 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
         }
 
         content = doBackup(profile = true, rule = true, setting = true)
-        val timeStamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmssSSS", Locale.ROOT).format(Date())
-        val fileName = "outline_backup_${timeStamp}.json"
 
         try {
             val metadata = com.google.api.services.drive.model.File().apply {
-                setName(fileName)
+                setName(getFileName())
                 setMimeType("application/json")
                 setParents(listOf("appDataFolder"))
             }
@@ -473,7 +483,7 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
             val query = driveService.files().list()
                 .setSpaces("appDataFolder")
                 .setFields("files(id, name, createdTime)")
-                .setQ("mimeType='application/json' and name contains 'outline_backup'")
+                .setQ("mimeType='application/json' and name contains '${appName}_backup'")
                 .setOrderBy("createdTime desc")
                 .execute()
 

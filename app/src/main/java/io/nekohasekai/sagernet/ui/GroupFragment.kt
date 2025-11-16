@@ -133,7 +133,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
     private lateinit var selectedGroup: ProxyGroup
 
     private val exportProfiles =
-        registerForActivityResult(ActivityResultContracts.CreateDocument()) { data ->
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { data ->
             if (data != null) {
                 runOnDefaultDispatcher {
                     val profiles = SagerDatabase.proxyDao.getByGroup(selectedGroup.id)
